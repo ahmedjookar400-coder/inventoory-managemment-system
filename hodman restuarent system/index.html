@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hodman Restaurant System | POS, Dual-Printers & Inventory Management</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              200: '#bfdbfe',
+              300: '#93c5fd',
+              400: '#60a5fa',
+              500: '#2563eb',
+              600: '#1d4ed8',
+              700: '#1e40af',
+              800: '#1e3a8a',
+              900: '#172554'
+            },
+            gold: {
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706'
+            },
+            dark: {
+              bg: '#080e1e',
+              card: '#0d1629',
+              border: '#1e2b45'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Prevent theme flicker on page load -->
+  <script>
+    if (localStorage.getItem('hodman_theme') === 'light') {
+      document.documentElement.classList.add('theme-light');
+    }
+  </script>
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/style.css?v=20261002-order-history">
+</head>
+<body class="h-full bg-[#080e1e] text-slate-100 flex flex-col overflow-hidden select-none">
+
+  <!-- ================= SLIM TOP BAR ================= -->
+  <header class="h-12 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-5 flex items-center justify-between flex-shrink-0 z-30">
+    <!-- Left: Compact Logo -->
+    <div class="flex items-center gap-2">
+      <!-- Mobile hamburger toggle -->
+      <button id="btn-mobile-menu" class="lg:hidden text-slate-400 hover:text-white p-1.5 mr-1 rounded-md hover:bg-slate-800 transition-colors">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+      <div class="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center shadow-lg shadow-blue-500/20 border border-blue-400/30">
+        <img src="img/hodman-logo.svg" alt="Hodman" class="w-full h-full object-contain">
+      </div>
+      <h1 class="font-extrabold text-base tracking-wide text-white flex items-center gap-2">
+        <span class="font-brand-serif text-base tracking-normal font-black text-white">Hodman</span>
+        <span class="hidden sm:inline-block text-amber-400 font-bold text-[9px] tracking-wider bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30 uppercase">HALLS &amp; CAFETERIA</span>
+      </h1>
+    </div>
+
+    <!-- Right Controls: Staff Profile, Lock, Switch User, Logout, Clock -->
+    <div class="flex items-center gap-3">
+      <!-- Active User Capsule -->
+      <div id="nav-user-profile" class="flex items-center gap-2.5 bg-slate-950/80 pl-1.5 pr-2.5 py-1 rounded-full border border-slate-800">
+        <img 
+          id="nav-user-avatar" 
+          src="https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80" 
+          alt="Avatar" 
+          class="w-6 h-6 rounded-full object-cover border border-slate-700"
+        />
+        <div class="text-left hidden md:block">
+          <div class="flex items-center gap-1.5">
+            <span id="nav-user-name" class="font-bold text-xs text-white leading-tight">Staff</span>
+            <span id="nav-user-role-badge"></span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1 border-l border-slate-800 pl-2 ml-1">
+          <!-- Lock Terminal Button -->
+          <button 
+            id="btn-lock-terminal" 
+            class="text-slate-400 hover:text-amber-400 p-1 text-xs transition-colors" 
+            title="Lock Terminal (Requires PIN to unlock)"
+          >
+            <i class="fa-solid fa-lock"></i>
+          </button>
+
+          <!-- Quick Switch User Button -->
+          <button 
+            id="btn-switch-user" 
+            class="text-slate-400 hover:text-blue-400 p-1 text-xs transition-colors" 
+            title="Switch Staff Role (Cashier / Admin / Waiter)"
+          >
+            <i class="fa-solid fa-repeat"></i>
+          </button>
+
+          <!-- Logout Button -->
+          <button 
+            id="btn-logout" 
+            class="text-slate-400 hover:text-red-400 p-1 text-xs transition-colors" 
+            title="Log out of system"
+          >
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Test Chime Bell -->
+      <button id="btn-test-sound" class="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors" title="Test printer alert chime">
+        <i class="fa-solid fa-bell text-xs"></i>
+      </button>
+
+      <!-- Theme Switcher (Dark / Light) -->
+      <button id="btn-theme-toggle" class="p-1.5 px-2.5 text-slate-300 hover:text-white bg-slate-950/80 hover:bg-slate-800 border border-slate-800 rounded-xl transition-all flex items-center gap-1.5 text-xs font-bold shadow-sm" title="Toggle Light / Dark Mode">
+        <i id="theme-toggle-icon" class="fa-solid fa-moon text-xs text-blue-400"></i>
+        <span id="theme-toggle-label" class="text-[11px] font-extrabold">Dark</span>
+      </button>
+
+      <!-- Live Clock -->
+      <div class="hidden lg:flex items-center gap-2 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-slate-800 text-[11px] font-mono text-amber-400">
+        <i class="fa-regular fa-clock text-slate-400"></i>
+        <span id="system-clock">00:00:00</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= FLEX CONTAINER FOR SIDEBAR + MAIN ================= -->
+  <div class="flex-1 flex overflow-hidden">
+    
+    <!-- ================= LEFT SIDEBAR ================= -->
+    <aside id="left-sidebar" class="w-60 bg-slate-900 border-r border-slate-800 flex flex-col h-full z-40 flex-shrink-0 transition-transform duration-300 absolute lg:relative -translate-x-full lg:translate-x-0">
+      
+      <!-- Brand Sidebar Header -->
+      <div class="p-4 border-b border-slate-800/60 hidden lg:block">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center shadow-lg shadow-blue-500/20 border border-blue-400/30">
+            <img src="img/hodman-logo.svg" alt="Hodman" class="w-full h-full object-contain">
+          </div>
+          <div>
+            <h1 class="font-extrabold text-sm tracking-wide text-white flex flex-col">
+              <span class="font-brand-serif text-lg tracking-normal font-black text-white leading-tight">Hodman</span>
+            </h1>
+            <p class="text-[10px] text-slate-400 mt-0.5">POS &amp; Management</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Container -->
+      <nav id="nav-center-tabs" class="flex-1 overflow-y-auto py-4 px-3 space-y-1.5 flex flex-col">
+        <!-- Injected by auth.js -->
+      </nav>
+
+      <!-- Sidebar Footer -->
+      <div class="p-4 border-t border-slate-800/60 bg-slate-900/50 mt-auto">
+        <p class="text-[9px] text-slate-500 text-center uppercase tracking-widest font-bold">DEV: Jookar</p>
+      </div>
+    </aside>
+
+    <!-- Overlay for mobile sidebar -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-30 hidden lg:hidden"></div>
+
+    <!-- ================= MAIN VIEW CONTAINER ================= -->
+    <main class="flex-1 overflow-hidden relative">
+
+    <!-- ================= VIEW 0: CENTRAL RESTAURANT DASHBOARD (ADMIN & CASHIER ONLY) ================= -->
+    <section id="view-dashboard" class="h-full flex flex-col overflow-y-auto p-4 md:p-6 hidden">
+      <div id="dashboard-content-container" class="w-full"></div>
+    </section>
+
+    <!-- ================= VIEW 1: POS TERMINAL ================= -->
+    <section id="view-pos" class="h-full flex flex-col lg:flex-row overflow-hidden">
+      <!-- Left: Menu & Categories -->
+      <div class="flex-1 flex flex-col h-full overflow-hidden border-r border-slate-800/80">
+        <!-- Top Toolbar (Search & Quick Filter) -->
+        <div class="p-4 bg-slate-900/60 border-b border-slate-800/80 flex items-center gap-3 flex-shrink-0">
+          <div class="relative flex-1">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input 
+              type="text" 
+              id="menu-search-input" 
+              placeholder="Search dishes, drinks, appetizers (Press '/' to focus)..." 
+              class="w-full bg-slate-950 border border-slate-700/80 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors"
+            />
+          </div>
+          <button id="btn-pos-add-dish" class="px-3 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold whitespace-nowrap"><i class="fa-solid fa-plus"></i> Add Dish</button>
+          <button id="btn-pos-order-history" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold whitespace-nowrap"><i class="fa-solid fa-clock-rotate-left"></i> Order History</button>
+        </div>
+
+        <!-- Category Filter Pills -->
+        <div class="px-4 py-3 bg-slate-900/30 border-b border-slate-800/60 overflow-x-auto flex items-center gap-2 flex-shrink-0" id="pos-categories">
+          <!-- Dynamically populated -->
+        </div>
+
+        <!-- Menu Grid -->
+        <div class="flex-1 overflow-y-auto p-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4" id="pos-menu-grid">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Current Cart Drawer -->
+      <aside class="w-full lg:w-96 bg-slate-900/95 flex flex-col h-full flex-shrink-0 border-l border-slate-800">
+        <div class="p-4 border-b border-slate-800/80 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-cart-shopping text-orange-500 text-sm"></i>
+            <h2 class="font-extrabold text-white text-sm">Current Order Ticket</h2>
+          </div>
+          <button id="btn-clear-cart" class="text-xs text-slate-400 hover:text-red-400 transition-colors flex items-center gap-1">
+            <i class="fa-solid fa-trash-can text-[11px]"></i> Clear
+          </button>
+        </div>
+
+        <!-- Order Options (Type, Table, Customer) -->
+        <div class="p-4 bg-slate-950/60 border-b border-slate-800/60 space-y-2.5">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Order Type</label>
+              <select id="order-type-select" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                <option value="dine-in">Dine-in</option>
+                <option value="takeout">Takeout / Pickup</option>
+                <option value="delivery">Delivery</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Table / Spot</label>
+              <select id="table-select" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                <option value="Table 1">Table 1</option>
+                <option value="Table 2">Table 2</option>
+                <option value="Table 3">Table 3</option>
+                <option value="Table 4">Table 4</option>
+                <option value="Table 5">Table 5</option>
+                <option value="Table 6">Table 6</option>
+                <option value="Table 7">Table 7</option>
+                <option value="Table 8">Table 8</option>
+                <option value="VIP Lounge">VIP Lounge</option>
+                <option value="Patio 1">Patio 1</option>
+                <option value="Patio 2">Patio 2</option>
+                <option value="Takeaway">Takeaway</option>
+                <option value="Delivery">Delivery</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Customer Name (Optional)</label>
+            <input 
+              type="text" 
+              id="customer-name-input" 
+              placeholder="e.g. Ahmed Noor" 
+              class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
+            />
+          </div>
+        </div>
+
+        <!-- Cart Items List -->
+        <div class="flex-1 overflow-y-auto p-3" id="cart-items-container">
+          <!-- Dynamically populated -->
+        </div>
+
+        <!-- Empty Cart Notice -->
+        <div id="cart-empty-state" class="py-16 text-center text-slate-500">
+          <i class="fa-solid fa-basket-shopping text-4xl mb-2 text-slate-600"></i>
+          <p class="text-xs font-semibold">Your order is empty</p>
+          <p class="text-[10px] text-slate-500 mt-0.5">Click any menu item to add it to the ticket</p>
+        </div>
+
+        <!-- Cart Summary & Checkout -->
+        <div class="p-4 bg-slate-950 border-t border-slate-800 space-y-2">
+          <div class="flex justify-between text-xs text-slate-400">
+            <span>Subtotal</span>
+            <span id="cart-subtotal" class="font-mono text-white">$0.00</span>
+          </div>
+          <div class="flex justify-between text-xs text-slate-400">
+            <span>Sales Tax (5%)</span>
+            <span id="cart-tax" class="font-mono text-white">$0.00</span>
+          </div>
+          <div class="flex justify-between text-base font-extrabold text-white pt-2 border-t border-slate-800">
+            <span>Total Amount</span>
+            <span id="cart-total" class="text-orange-500 font-mono text-lg">$0.00</span>
+          </div>
+
+          <button 
+            id="btn-checkout" 
+            disabled 
+            class="w-full mt-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 active:scale-98 text-white font-extrabold py-3.5 px-4 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25 transition-all opacity-50 cursor-not-allowed"
+          >
+            <i class="fa-solid fa-hand-holding-dollar"></i> Collect Payment & Checkout
+          </button>
+        </div>
+      </aside>
+    </section>
+
+    <!-- ================= VIEW 2: INVENTORY MANAGEMENT ================= -->
+    <section id="view-inventory" class="h-full flex flex-col overflow-y-auto p-4 md:p-6 hidden space-y-6">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-black text-white flex items-center gap-2">
+            <i class="fa-solid fa-boxes-stacked text-blue-500"></i> Supplies &amp; Inventory Management
+          </h2>
+          <p class="text-xs text-slate-300 font-bold mt-0.5">Stock catalog, daily consumed items, price updates &amp; inventory adjustments</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btn-open-create-inv-cat" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold py-2.5 px-3.5 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-sm">
+            <i class="fa-solid fa-folder-plus text-blue-400"></i> + New Category
+          </button>
+          <button id="btn-open-add-inventory" class="bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-2.5 px-4 rounded-xl text-xs flex items-center gap-2 shadow-md shadow-blue-500/25 transition-all">
+            <i class="fa-solid fa-plus"></i> Add New Stock Item
+          </button>
+        </div>
+      </div>
+
+      <!-- Inventory Sub-Tabs Bar -->
+      <div class="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3">
+        <button class="inv-subtab-btn px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 bg-blue-600 text-white shadow-lg shadow-blue-500/30" data-tab="items">
+          <i class="fa-solid fa-boxes-stacked"></i> Item List
+        </button>
+        <button class="inv-subtab-btn px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800" data-tab="used">
+          <i class="fa-solid fa-utensils"></i> Used Items (Consumption)
+        </button>
+        <button class="inv-subtab-btn px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800" data-tab="prices">
+          <i class="fa-solid fa-tag"></i> Updating Price Items
+        </button>
+        <button class="inv-subtab-btn px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800" data-tab="adjustments">
+          <i class="fa-solid fa-sliders"></i> Inventory Adjustments
+        </button>
+      </div>
+
+      <!-- Low Stock Warning Banner -->
+      <div id="inv-low-stock-banner" class="bg-amber-500/10 border border-amber-500/40 p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hidden">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div>
+            <h4 class="font-extrabold text-xs text-white">Low Stock Warning</h4>
+            <p class="text-[11px] text-amber-300">The following essential ingredients are below the minimum threshold and require restocking:</p>
+          </div>
+        </div>
+        <div id="inv-low-stock-list" class="flex flex-wrap gap-2"></div>
+      </div>
+
+      <!-- Inventory KPIs -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center gap-4 shadow-lg">
+          <div class="w-12 h-12 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-xl border border-blue-500/30">
+            <i class="fa-solid fa-cubes-stacked"></i>
+          </div>
+          <div>
+            <p class="text-xs font-bold text-slate-400">Total Tracked Items</p>
+            <h3 id="inv-kpi-total" class="text-2xl font-black text-white font-mono mt-0.5">0</h3>
+          </div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center gap-4 shadow-lg">
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl border border-emerald-500/30">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+          <div>
+            <p class="text-xs font-bold text-slate-400">Optimal Stock Items</p>
+            <h3 id="inv-kpi-instock" class="text-2xl font-black text-white font-mono mt-0.5">0</h3>
+          </div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center gap-4 shadow-lg">
+          <div class="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl border border-amber-500/30">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div>
+            <p class="text-xs font-bold text-slate-400">Low / Out of Stock</p>
+            <h3 id="inv-kpi-lowstock" class="text-2xl font-black text-white font-mono mt-0.5">0</h3>
+          </div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center gap-4 shadow-lg">
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl border border-emerald-500/30">
+            <i class="fa-solid fa-coins"></i>
+          </div>
+          <div>
+            <p class="text-xs font-bold text-slate-400">Estimated Stock Value</p>
+            <h3 id="inv-kpi-value" class="text-2xl font-black text-emerald-400 font-mono mt-0.5">$0.00</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= SUB-TAB 1: ITEM LIST ================= -->
+      <div id="inv-subtab-items" class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h3 class="text-sm font-black text-white flex items-center gap-2">
+            <i class="fa-solid fa-warehouse text-blue-400"></i> Stock Items Directory
+          </h3>
+          <div class="flex flex-wrap items-center gap-2">
+            <input type="text" id="inv-search" placeholder="Search supplies, suppliers..." class="bg-slate-950 border border-slate-700 text-xs text-white rounded-xl px-3 py-2 outline-none focus:border-blue-500 font-bold" />
+            <select id="inv-category-filter" class="bg-slate-950 border border-slate-700 text-xs text-white rounded-xl px-2.5 py-2 outline-none focus:border-blue-500 font-bold">
+              <option value="all">All Categories</option>
+            </select>
+            <select id="inv-status-filter" class="bg-slate-950 border border-slate-700 text-xs text-white rounded-xl px-2.5 py-2 outline-none focus:border-blue-500 font-bold">
+              <option value="all">All Statuses</option>
+              <option value="low">Low Stock Only</option>
+              <option value="out">Out of Stock Only</option>
+              <option value="good">Optimal Stock Only</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-800 text-[10px] uppercase font-black tracking-wider text-slate-400">
+                <th class="py-3 px-4 font-bold">Item &amp; Supplier</th>
+                <th class="py-3 px-4 font-bold">Current Stock</th>
+                <th class="py-3 px-4 font-bold">Stock Status</th>
+                <th class="py-3 px-4 font-bold">Unit Cost</th>
+                <th class="py-3 px-4 font-bold">Total Value</th>
+                <th class="py-3 px-4 font-bold">Restocked</th>
+                <th class="py-3 px-4 font-bold text-right">Quick Restock / Actions</th>
+              </tr>
+            </thead>
+            <tbody id="inv-table-body" class="divide-y divide-slate-800/70 font-medium"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= SUB-TAB 2: USED ITEMS ================= -->
+      <div id="inv-subtab-used" class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl hidden">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-800">
+          <div>
+            <h3 class="text-sm font-black text-white flex items-center gap-2">
+              <i class="fa-solid fa-utensils text-amber-400"></i> Daily Ingredient Consumption &amp; Used Items Log
+            </h3>
+            <p class="text-[11px] text-slate-400 font-medium">Records ingredients consumed by Kitchen, Hall Banquets, and Cafeteria</p>
+          </div>
+          <button id="btn-open-record-used" class="bg-amber-600 hover:bg-amber-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-md transition-all">
+            <i class="fa-solid fa-plus-circle"></i> + Record Used Item
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-800 text-[10px] uppercase font-black tracking-wider text-slate-400">
+                <th class="py-3 px-4 font-bold">DATE</th>
+                <th class="py-3 px-4 font-bold">ITEM NAME</th>
+                <th class="py-3 px-4 font-bold">QUANTITY USED</th>
+                <th class="py-3 px-4 font-bold">DEPARTMENT</th>
+                <th class="py-3 px-4 font-bold">LOGGED BY</th>
+                <th class="py-3 px-4 font-bold">PURPOSE / DISH</th>
+              </tr>
+            </thead>
+            <tbody id="inv-used-table-body" class="divide-y divide-slate-800/70 font-medium"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= SUB-TAB 3: UPDATING PRICE ITEM ================= -->
+      <div id="inv-subtab-prices" class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl hidden">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-800">
+          <div>
+            <h3 class="text-sm font-black text-white flex items-center gap-2">
+              <i class="fa-solid fa-tag text-emerald-400"></i> Fast Unit Cost &amp; Price Item Updates
+            </h3>
+            <p class="text-[11px] text-slate-400 font-medium">Modify item purchase prices and unit valuation with instant saves</p>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-800 text-[10px] uppercase font-black tracking-wider text-slate-400">
+                <th class="py-3 px-4 font-bold">ITEM &amp; SUPPLIER</th>
+                <th class="py-3 px-4 font-bold">CURRENT STOCK</th>
+                <th class="py-3 px-4 font-bold">PREVIOUS COST</th>
+                <th class="py-3 px-4 font-bold">NEW UNIT PRICE ($)</th>
+                <th class="py-3 px-4 font-bold text-right">ACTION</th>
+              </tr>
+            </thead>
+            <tbody id="inv-prices-table-body" class="divide-y divide-slate-800/70 font-medium"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= SUB-TAB 4: INVENTORY ADJUSTMENTS ================= -->
+      <div id="inv-subtab-adjustments" class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl hidden">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-800">
+          <div>
+            <h3 class="text-sm font-black text-white flex items-center gap-2">
+              <i class="fa-solid fa-sliders text-blue-400"></i> Stock Adjustments &amp; Audit Log
+            </h3>
+            <p class="text-[11px] text-slate-400 font-medium">Track stock corrections for spoilage, damage, physical audits, or expired items</p>
+          </div>
+          <button id="btn-open-record-adjustment" class="bg-blue-600 hover:bg-blue-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-md transition-all">
+            <i class="fa-solid fa-plus-circle"></i> + New Stock Adjustment
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-800 text-[10px] uppercase font-black tracking-wider text-slate-400">
+                <th class="py-3 px-4 font-bold">DATE</th>
+                <th class="py-3 px-4 font-bold">ADJ #</th>
+                <th class="py-3 px-4 font-bold">ITEM NAME</th>
+                <th class="py-3 px-4 font-bold">TYPE</th>
+                <th class="py-3 px-4 font-bold">ADJUSTED QTY</th>
+                <th class="py-3 px-4 font-bold">REASON</th>
+                <th class="py-3 px-4 font-bold">NOTES</th>
+              </tr>
+            </thead>
+            <tbody id="inv-adjustments-table-body" class="divide-y divide-slate-800/70 font-medium"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= VIEW 3: SALES REPORTS & ANALYTICS ================= -->
+    <section id="view-reports" class="h-full flex flex-col overflow-y-auto p-6 hidden space-y-6">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-black text-white">Sales Performance & Register History</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Overview of restaurant transactions, revenue metrics, and completed orders</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btn-export-csv" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all">
+            <i class="fa-solid fa-file-csv text-emerald-400"></i> Export Sales (CSV)
+          </button>
+          <button id="btn-reset-data" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all">
+            <i class="fa-solid fa-arrows-rotate"></i> Reset Demo Data
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-2xl flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl border border-emerald-500/30">
+            <i class="fa-solid fa-dollar-sign"></i>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-slate-400">Total Money Collected</p>
+            <h3 id="report-kpi-revenue" class="text-2xl font-black text-white font-mono mt-0.5">$0.00</h3>
+          </div>
+        </div>
+
+        <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-2xl flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center text-xl border border-orange-500/30">
+            <i class="fa-solid fa-receipt"></i>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-slate-400">Total Orders Settled</p>
+            <h3 id="report-kpi-orders" class="text-2xl font-black text-white font-mono mt-0.5">0</h3>
+          </div>
+        </div>
+
+        <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-2xl flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-xl border border-blue-500/30">
+            <i class="fa-solid fa-chart-line"></i>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-slate-400">Average Check (AOV)</p>
+            <h3 id="report-kpi-aov" class="text-2xl font-black text-white font-mono mt-0.5">$0.00</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- Split Row: Top Items & Payment Breakdown -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+          <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-crown text-amber-400"></i> Top Best-Selling Dishes
+          </h3>
+          <div id="report-top-items-list" class="space-y-2.5"></div>
+        </div>
+
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+          <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-wallet text-orange-400"></i> Payment Methods Breakdown
+          </h3>
+          <div id="report-payment-breakdown" class="mt-4"></div>
+        </div>
+      </div>
+
+      <!-- Order History Table -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-clock-rotate-left text-slate-400"></i> Order Transaction History & Receipts
+          </h3>
+          <div class="flex items-center gap-2">
+            <input type="text" id="report-history-search" placeholder="Filter by Order # or Customer..." class="bg-slate-950 border border-slate-700 text-xs text-white rounded-lg px-3 py-1.5 outline-none focus:border-orange-500" />
+            <select id="report-history-status" class="bg-slate-950 border border-slate-700 text-xs text-white rounded-lg px-2.5 py-1.5 outline-none focus:border-orange-500">
+              <option value="all">All Orders</option>
+              <option value="completed">Completed</option>
+              <option value="pending">Pending</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead>
+              <tr class="border-b border-slate-800 text-[11px] uppercase tracking-wider text-slate-400">
+                <th class="py-2.5 px-4 font-bold">Order #</th>
+                <th class="py-2.5 px-4 font-bold">Time</th>
+                <th class="py-2.5 px-4 font-bold">Table / Customer</th>
+                <th class="py-2.5 px-4 font-bold">Items Summary</th>
+                <th class="py-2.5 px-4 font-bold">Payment</th>
+                <th class="py-2.5 px-4 font-bold">Total</th>
+                <th class="py-2.5 px-4 font-bold">Status</th>
+                <th class="py-2.5 px-4 font-bold text-right">Reprint</th>
+              </tr>
+            </thead>
+            <tbody id="report-orders-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= VIEW 4: ADMIN & USER MANAGEMENT ================= -->
+    <section id="view-admin" class="h-full flex flex-col overflow-y-auto p-6 hidden space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-black text-white flex items-center gap-2">
+            <i class="fa-solid fa-user-gear text-orange-500"></i> Admin Center & User Management
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">Control staff credentials, security PINs, menu pricing, and restaurant configuration</p>
+        </div>
+        <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs px-3 py-1 rounded-full font-bold">
+          <i class="fa-solid fa-shield-halved"></i> Administrator Access Only
+        </span>
+      </div>
+
+      <!-- Staff User Management Table -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-users text-orange-500"></i> Staff Accounts & Security PINs
+            </h3>
+            <p class="text-[11px] text-slate-400">Manage cashier, waiter, and admin access accounts and their 4-digit PIN codes</p>
+          </div>
+          <button id="btn-open-add-user" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-3.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all">
+            <i class="fa-solid fa-user-plus"></i> Add New Staff Member
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead>
+              <tr class="border-b border-slate-800 text-[11px] uppercase tracking-wider text-slate-400">
+                <th class="py-2.5 px-3 font-bold">Staff Member</th>
+                <th class="py-2.5 px-3 font-bold">Username</th>
+                <th class="py-2.5 px-3 font-bold">Fast PIN</th>
+                <th class="py-2.5 px-3 font-bold">Assigned Role</th>
+                <th class="py-2.5 px-3 font-bold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-staff-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Menu Items & Add Dish Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 bg-slate-900/90 border border-slate-800 rounded-2xl p-5">
+          <h3 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-plus-circle text-orange-500"></i> Add New Dish to Menu
+          </h3>
+          <form id="admin-add-dish-form" class="space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div class="sm:col-span-2">
+                <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Dish Name</label>
+                <input type="text" id="dish-name" placeholder="e.g. Somali Grilled Fish" required class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500" />
+              </div>
+              <div>
+                <div class="flex items-center justify-between">
+                  <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Category</label>
+                  <button type="button" id="btn-toggle-add-dish-cat" class="text-[10px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
+                    <i class="fa-solid fa-plus-circle"></i> + New Category
+                  </button>
+                </div>
+                <select id="dish-category" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-blue-500">
+                  <option value="somali_specials">Hodman Specials</option>
+                  <option value="mains">Mains & Grills</option>
+                  <option value="appetizers">Appetizers</option>
+                  <option value="fast_food">Burgers & Wraps</option>
+                  <option value="drinks">Beverages</option>
+                  <option value="desserts">Desserts</option>
+                </select>
+
+                <!-- Inline Category Creator Box -->
+                <div id="dish-cat-create-box" class="hidden mt-2 p-2.5 rounded-xl bg-slate-950 border border-blue-500/40 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Add New Dish Category</span>
+                    <button type="button" id="btn-cancel-dish-cat" class="text-slate-400 hover:text-white text-xs">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <input type="text" id="new-dish-cat-name" placeholder="Category name (e.g. Seafood, Shakes)..." class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-blue-500" />
+                    <button type="button" id="btn-save-dish-cat" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs flex items-center gap-1 transition-all shadow-sm">
+                      <i class="fa-solid fa-check"></i> Save
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Price ($ USD)</label>
+                <input type="number" step="0.01" id="dish-price" placeholder="e.g. 15.00" required class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono" />
+              </div>
+              <div>
+                <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Image URL (Optional)</label>
+                <input type="url" id="dish-image" placeholder="https://images.unsplash.com/..." class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500" />
+              </div>
+            </div>
+
+            <div>
+              <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Description</label>
+              <textarea id="dish-desc" rows="2" placeholder="Delicious tender lamb served with fragrant spiced rice..." class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500"></textarea>
+            </div>
+
+            <button type="submit" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 px-5 rounded-xl text-xs flex items-center gap-2 shadow-md transition-all">
+              <i class="fa-solid fa-floppy-disk"></i> Save & Publish Dish
+            </button>
+          </form>
+        </div>
+
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5">
+          <h3 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-gear text-orange-500"></i> Restaurant Profile
+          </h3>
+          <form id="admin-settings-form" class="space-y-3">
+            <div>
+              <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Restaurant Name</label>
+              <input type="text" id="setting-restaurant-name" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-orange-500" />
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Address</label>
+              <input type="text" id="setting-restaurant-address" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-orange-500" />
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Phone</label>
+              <input type="text" id="setting-restaurant-phone" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-orange-500" />
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Sales Tax (%)</label>
+              <input type="number" id="setting-tax-rate" step="1" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-orange-500 font-mono" />
+            </div>
+
+            <!-- Mobile Money Merchant Codes -->
+            <div class="pt-2 border-t border-slate-800">
+              <p class="text-[11px] font-bold text-orange-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <i class="fa-solid fa-mobile-screen-button"></i> Mobile Money Merchant Codes (Receipt)
+              </p>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">EVC Plus Code<br><span class="text-orange-400 normal-case font-mono text-[9px]">*789*CODE*AMOUNT#</span></label>
+                  <input type="text" id="setting-evc-code" placeholder="e.g. 709275" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-orange-500 font-mono" />
+                </div>
+                <div>
+                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Edahab Code<br><span class="text-orange-400 normal-case font-mono text-[9px]">*113*CODE*AMOUNT#</span></label>
+                  <input type="text" id="setting-edahab-code" placeholder="e.g. 099859" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-orange-500 font-mono" />
+                </div>
+                <div>
+                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Premier Wallet Code</label>
+                  <input type="text" id="setting-premier-code" placeholder="e.g. 673836" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-orange-500 font-mono" />
+                </div>
+                <div>
+                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ebesa Code</label>
+                  <input type="text" id="setting-ebesa-code" placeholder="e.g. 940396" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-orange-500 font-mono" />
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 rounded-xl text-xs transition-all border border-slate-700 mt-2">
+              Update Profile
+            </button>
+          </form>
+        </div>
+      </div>
+
+
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5">
+        <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-list-check text-orange-500"></i> Live Menu Items & Availability
+        </h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead>
+              <tr class="border-b border-slate-800 text-[11px] uppercase tracking-wider text-slate-400">
+                <th class="py-2.5 px-3 font-bold">Dish</th>
+                <th class="py-2.5 px-3 font-bold">Price</th>
+                <th class="py-2.5 px-3 font-bold">Inventory Status</th>
+                <th class="py-2.5 px-3 font-bold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-menu-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= VIEW 5: UNPAID ORDERS / OPEN BILLS DASHBOARD ================= -->
+    <!-- ================= VIEW 5: UNPAID / FURAN (EXACT PICTURE MATCH) ================= -->
+    <section id="view-unpaid" class="h-full flex flex-col overflow-y-auto p-4 md:p-6 hidden bg-[#f8fafc]"></section>
+
+    <!-- ================= VIEW 6: HALLS MANAGEMENT ================= -->
+    <section id="view-halls" class="h-full flex flex-col overflow-y-auto p-4 md:p-6 hidden">
+      <div id="halls-content-container" class="w-full"></div>
+    </section>
+
+    <!-- ================= VIEW 7: CUSTOMERS (CRM) ================= -->
+    <section id="view-crm" class="h-full flex flex-col overflow-y-auto p-4 md:p-6 hidden">
+      <div id="crm-content-container" class="w-full"></div>
+    </section>
+
+    <!-- ================= VIEW 8: HUMAN RESOURCE (HR) ================= -->
+    <section id="view-hr" class="h-full flex flex-col overflow-y-auto p-4 md:p-6 hidden">
+      <div id="hr-content-container" class="w-full"></div>
+    </section>
+
+    <!-- ================= VIEW 9: PURCHASE & PROCUREMENT ================= -->
+    <section id="view-purchase" class="h-full flex flex-col overflow-y-auto p-4 md:p-6 hidden">
+      <div id="purchase-content-container" class="w-full"></div>
+    </section>
+
+  </main>
+  </div> <!-- Close Flex Container -->
+
+  <!-- ================= AUTHENTICATION MODAL: STRICT PIN / PASSWORD LOCK ================= -->
+  <div id="login-modal" class="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div id="login-box" class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative transition-transform">
+      <div class="text-center mb-5">
+        <div class="w-20 h-20 mx-auto rounded-full bg-white p-1.5 flex items-center justify-center shadow-xl shadow-blue-500/30 border-2 border-blue-500/40 mb-3">
+          <img src="img/hodman-logo.svg" alt="Hodman" class="w-full h-full object-contain">
+        </div>
+        <h2 class="text-2xl font-black text-white tracking-wide font-brand-serif">Hodman</h2>
+        <p class="text-xs text-amber-400 font-extrabold uppercase tracking-widest mt-0.5">Restaurant Halls &amp; Cafeteria</p>
+        <p class="text-[11px] text-slate-400 mt-1">Staff Security Lock • PIN or Password Verification</p>
+      </div>
+
+      <div id="login-error-msg" class="mb-4 p-2.5 rounded-xl bg-red-500/15 border border-red-500/40 text-red-400 text-xs font-bold text-center hidden">
+        Incorrect PIN or Password! Access denied.
+      </div>
+
+      <div id="login-staff-cards" class="space-y-2.5">
+        <p class="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Select Your Staff Account:</p>
+      </div>
+
+      <div id="login-pin-section" class="hidden">
+        <!-- Back Navigation Header between Users -->
+        <div class="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-800">
+          <button id="btn-back-to-users-top" type="button" class="flex items-center gap-2 text-xs font-bold text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-xl border border-slate-700 transition-all shadow-sm">
+            <i class="fa-solid fa-arrow-left text-blue-400"></i> Back to Users List
+          </button>
+          <span class="text-[11px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-shield-halved"></i> Security PIN
+          </span>
+        </div>
+
+        <div class="flex items-center justify-between bg-slate-950 p-3 rounded-2xl border border-slate-800 mb-4">
+          <div class="flex items-center gap-3">
+            <img id="login-selected-avatar" src="" class="w-10 h-10 rounded-xl object-cover border border-slate-700" />
+            <div>
+              <h3 id="login-selected-name" class="font-extrabold text-sm text-white">Staff Name</h3>
+              <p id="login-selected-role" class="text-xs text-blue-400 font-medium">Role</p>
+            </div>
+          </div>
+          <button id="btn-back-to-staff" type="button" class="text-xs font-bold text-blue-300 hover:text-white px-3 py-1.5 rounded-lg bg-blue-600/30 hover:bg-blue-600 border border-blue-500/40 transition-colors flex items-center gap-1.5 shadow-sm">
+            <i class="fa-solid fa-arrow-left"></i> Change User
+          </button>
+        </div>
+
+        <div id="pin-keypad-wrapper">
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block text-center mb-1.5">Enter 4-Digit Security PIN</label>
+          <div class="flex justify-center mb-3">
+            <input 
+              type="password" 
+              maxlength="6" 
+              id="login-pin-input" 
+              placeholder="● ● ● ●" 
+              class="w-48 bg-slate-950 border border-slate-700 rounded-xl py-2 text-center text-xl text-white font-mono tracking-widest focus:border-blue-500 outline-none"
+            />
+          </div>
+
+          <div class="grid grid-cols-3 gap-2 max-w-xs mx-auto mb-3">
+            <button class="keypad-btn py-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-base border border-slate-700/60 active:scale-95 transition-all" data-val="1">1</button>
+            <button class="keypad-btn py-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-base border border-slate-700/60 active:scale-95 transition-all" data-val="2">2</button>
+            <button class="keypad-btn py-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-base border border-slate-700/60 active:scale-95 transition-all" data-val="3">3</button>
+            <button class="keypad-btn py-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-base border border-slate-700/60 active:scale-95 transition-all" data-val="4">4</button>
+            <button class="keypad-btn py-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-base border border-slate-700/60 active:scale-95 transition-all" data-val="5">5</button>
+            <button class="keypad-btn py-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-base border border-slate-700/60 active:scale-95 transition-all" data-val="6">6</button>
+            <button class="keypad-btn py-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-base border border-slate-700/60 active:scale-95 transition-all" data-val="7">7</button>
+            <button class="keypad-btn py-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-base border border-slate-700/60 active:scale-95 transition-all" data-val="8">8</button>
+            <button class="keypad-btn py-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-base border border-slate-700/60 active:scale-95 transition-all" data-val="9">9</button>
+            <button id="keypad-btn-clear" class="py-3 rounded-xl bg-slate-800/40 hover:bg-red-500/20 text-slate-400 hover:text-red-400 font-bold text-xs border border-slate-800 active:scale-95 transition-all">Clear</button>
+            <button class="keypad-btn py-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-base border border-slate-700/60 active:scale-95 transition-all" data-val="0">0</button>
+            <button id="keypad-btn-backspace" class="py-3 rounded-xl bg-slate-800/40 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-800 active:scale-95 transition-all"><i class="fa-solid fa-delete-left"></i></button>
+          </div>
+        </div>
+
+        <div id="password-input-wrapper" class="hidden mb-3">
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Enter Password</label>
+          <input type="password" id="login-password-input" placeholder="Type your password..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:border-blue-500 outline-none" />
+        </div>
+
+        <button id="btn-unlock-system" class="w-full bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 active:scale-98 text-white font-extrabold py-3 px-4 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition-all">
+          <i class="fa-solid fa-lock-open"></i> Verify PIN &amp; Unlock System
+        </button>
+
+        <button id="btn-toggle-password-mode" type="button" class="w-full mt-2 text-center text-xs text-slate-500 hover:text-slate-300 transition-colors">
+          Use Alphanumeric Password Instead
+        </button>
+
+        <!-- Prominent Bottom Back Button between users -->
+        <button id="btn-back-to-users-bottom" type="button" class="w-full mt-3 py-2.5 px-4 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-xs font-bold text-slate-300 hover:text-white flex items-center justify-center gap-2 transition-all">
+          <i class="fa-solid fa-arrow-left text-blue-400"></i> Back to Staff User Selection
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SWITCH USER MODAL ================= -->
+  <div id="switch-user-modal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-extrabold text-sm text-white flex items-center gap-2">
+          <i class="fa-solid fa-users text-orange-500"></i> Switch Staff Profile
+        </h3>
+        <button onclick="document.getElementById('switch-user-modal').classList.add('hidden')" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+      <p class="text-xs text-slate-400 mt-3 mb-4">Select staff account to authenticate with their security PIN:</p>
+      <div id="switch-staff-cards" class="space-y-2.5"></div>
+    </div>
+  </div>
+
+  <!-- ================= ADD INVENTORY ITEM MODAL ================= -->
+  <div id="inv-add-modal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-extrabold text-sm text-white flex items-center gap-2">
+          <i class="fa-solid fa-box-open text-orange-500"></i> Add New Inventory Item
+        </h3>
+        <button id="btn-close-add-inventory" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+      <form id="inv-add-form" class="space-y-3 mt-4">
+        <div>
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Item Name</label>
+          <input type="text" id="inv-item-name" placeholder="e.g. Saffron / Cardamom" required class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <div class="flex items-center justify-between">
+              <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Category</label>
+              <button type="button" id="btn-toggle-add-inv-cat" class="text-[10px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
+                <i class="fa-solid fa-plus-circle"></i> + New Category
+              </button>
+            </div>
+            <select id="inv-item-category" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-blue-500">
+              <option value="Grains & Pasta">Grains & Pasta</option>
+              <option value="Meat & Poultry">Meat & Poultry</option>
+              <option value="Produce">Produce</option>
+              <option value="Dairy">Dairy</option>
+              <option value="Bakery & Pastry">Bakery & Pastry</option>
+              <option value="Spices & Dry Goods">Spices & Dry Goods</option>
+              <option value="Oils & Essentials">Oils & Essentials</option>
+            </select>
+
+            <!-- Inline Category Creator Box for Inventory Add Modal -->
+            <div id="inv-cat-create-box" class="hidden mt-2 p-2.5 rounded-xl bg-slate-950 border border-blue-500/40 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Add Supply Category</span>
+                <button type="button" id="btn-cancel-inv-cat" class="text-slate-400 hover:text-white text-xs">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="text" id="new-inv-cat-name" placeholder="Category name (e.g. Seafood, Cleaning)..." class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-blue-500" />
+                <button type="button" id="btn-save-inv-cat" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs flex items-center gap-1 transition-all shadow-sm">
+                  <i class="fa-solid fa-check"></i> Save
+                </button>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Unit of Measure</label>
+            <input type="text" id="inv-item-unit" placeholder="kg, Liters, pcs" required class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Initial Quantity</label>
+            <input type="number" step="0.1" id="inv-item-qty" placeholder="e.g. 20" required class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono" />
+          </div>
+          <div>
+            <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Min Alert Threshold</label>
+            <input type="number" step="0.1" id="inv-item-min" placeholder="e.g. 5" required class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Cost per Unit ($)</label>
+            <input type="number" step="0.01" id="inv-item-cost" placeholder="e.g. 4.50" required class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono" />
+          </div>
+          <div>
+            <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Supplier</label>
+            <input type="text" id="inv-item-supplier" placeholder="e.g. Fresh Market" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500" />
+          </div>
+        </div>
+        <button type="submit" class="w-full mt-2 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-md">
+          Save Supply Item
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= STANDALONE CREATE INVENTORY CATEGORY MODAL ================= -->
+  <div id="inv-create-cat-modal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-extrabold text-sm text-white flex items-center gap-2">
+          <i class="fa-solid fa-folder-plus text-blue-400"></i> Add Inventory Category
+        </h3>
+        <button id="btn-close-create-inv-cat-modal" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+      <form id="inv-standalone-cat-form" class="space-y-3 mt-4">
+        <div>
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Category Name</label>
+          <input type="text" id="standalone-inv-cat-input" placeholder="e.g. Seafood & Fish, Packaging, Spices" required class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-blue-500" />
+        </div>
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md shadow-blue-500/25 transition-all">
+          <i class="fa-solid fa-plus"></i> Create Category
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= RECORD USED ITEM MODAL ================= -->
+  <div id="inv-record-used-modal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+        <h3 class="font-extrabold text-sm text-white flex items-center gap-2">
+          <i class="fa-solid fa-utensils text-amber-400"></i> Record Used Item (Consumption)
+        </h3>
+        <button onclick="document.getElementById('inv-record-used-modal').classList.add('hidden')" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+      <form id="inv-record-used-form" class="space-y-3.5 text-xs">
+        <div>
+          <label class="block font-bold text-slate-300 mb-1">Select Ingredient / Supply Item *</label>
+          <select id="inv-used-item-select" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold outline-none focus:border-blue-500"></select>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-300 mb-1">Quantity Consumed *</label>
+          <input type="number" step="0.1" id="inv-used-quantity" required placeholder="e.g. 5" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block font-bold text-slate-300 mb-1">Kitchen / Department *</label>
+          <select id="inv-used-dept" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold outline-none focus:border-blue-500">
+            <option value="Main Kitchen">Main Kitchen</option>
+            <option value="Kitchen & Grill">Kitchen &amp; Grill</option>
+            <option value="Cafeteria & Drinks">Cafeteria &amp; Drinks</option>
+            <option value="Hall 1 Banquet">Hall 1 Banquet</option>
+            <option value="Hall 2 Events">Hall 2 Events</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-300 mb-1">Logged By Staff Member</label>
+          <input type="text" id="inv-used-by" placeholder="e.g. Sahra Hassan (Chef)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block font-bold text-slate-300 mb-1">Reason / Dish Prepared</label>
+          <input type="text" id="inv-used-reason" placeholder="e.g. Lunch Biryani & Chicken Grills" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold outline-none focus:border-blue-500" />
+        </div>
+        <button type="submit" class="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-xl mt-3 shadow-lg shadow-amber-600/25 transition-all">
+          Deduct &amp; Save Used Record
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= INVENTORY ADJUSTMENT MODAL ================= -->
+  <div id="inv-record-adj-modal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+        <h3 class="font-extrabold text-sm text-white flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-blue-400"></i> New Stock Adjustment
+        </h3>
+        <button onclick="document.getElementById('inv-record-adj-modal').classList.add('hidden')" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+      <form id="inv-record-adj-form" class="space-y-3.5 text-xs">
+        <div>
+          <label class="block font-bold text-slate-300 mb-1">Select Item *</label>
+          <select id="inv-adj-item-select" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold outline-none focus:border-blue-500"></select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-300 mb-1">Adjustment Type *</label>
+            <select id="inv-adj-type" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold outline-none focus:border-blue-500">
+              <option value="Deduction (-)">Deduction (-)</option>
+              <option value="Addition (+)">Addition (+)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-bold text-slate-300 mb-1">Quantity *</label>
+            <input type="number" step="0.1" id="inv-adj-quantity" required placeholder="e.g. 3" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold outline-none focus:border-blue-500" />
+          </div>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-300 mb-1">Adjustment Reason *</label>
+          <select id="inv-adj-reason" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold outline-none focus:border-blue-500">
+            <option value="Spoilage / Wastage">Spoilage / Wastage</option>
+            <option value="Damage in Transit / Storage">Damage in Transit / Storage</option>
+            <option value="Physical Count Audit Correction">Physical Count Audit Correction</option>
+            <option value="Expired Product">Expired Product</option>
+            <option value="Found Uncounted Surplus">Found Uncounted Surplus</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-300 mb-1">Notes / Explanation</label>
+          <input type="text" id="inv-adj-notes" placeholder="e.g. Verified by head chef during weekly audit" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold outline-none focus:border-blue-500" />
+        </div>
+        <button type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl mt-3 shadow-lg shadow-blue-500/25 transition-all">
+          Apply Stock Adjustment
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= ADD STAFF USER MODAL ================= -->
+  <div id="admin-add-user-modal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-extrabold text-sm text-white flex items-center gap-2">
+          <i class="fa-solid fa-user-plus text-orange-500"></i> Add New Staff Member
+        </h3>
+        <button id="btn-close-add-user" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+      <form id="admin-add-user-form" class="space-y-3 mt-4">
+        <div>
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Full Name</label>
+          <input type="text" id="new-user-name" placeholder="e.g. Liban Warsame" required class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Username</label>
+            <input type="text" id="new-user-username" placeholder="liban" required class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500" />
+          </div>
+          <div>
+            <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Assigned Role</label>
+            <select id="new-user-role" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500">
+              <option value="waiter">Waiter (Floor Staff)</option>
+              <option value="cashier">Cashier (POS & Sales)</option>
+              <option value="admin">Administrator (Manager)</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">4-Digit PIN</label>
+            <input type="password" maxlength="6" id="new-user-pin" placeholder="e.g. 2468" required class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono tracking-widest" />
+          </div>
+          <div>
+            <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Password</label>
+            <input type="text" id="new-user-password" placeholder="e.g. pass123" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500" />
+          </div>
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Job Title (Optional)</label>
+          <input type="text" id="new-user-title" placeholder="e.g. Lead Floor Server" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500" />
+        </div>
+        <button type="submit" class="w-full mt-2 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-md">
+          Create Staff Account
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= EDIT STAFF USER MODAL ================= -->
+  <div id="admin-edit-user-modal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-extrabold text-sm text-white flex items-center gap-2">
+          <i class="fa-solid fa-user-pen text-orange-500"></i> Edit Staff Profile
+        </h3>
+        <button id="btn-close-edit-user" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+      <form id="admin-edit-user-form" class="space-y-3 mt-4">
+        <input type="hidden" id="edit-user-id" />
+        <div>
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Full Name</label>
+          <input type="text" id="edit-user-name" required class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500" />
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Role</label>
+          <select id="edit-user-role" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500">
+            <option value="waiter">Waiter</option>
+            <option value="cashier">Cashier</option>
+            <option value="admin">Administrator</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">4-Digit Security PIN</label>
+            <input type="text" maxlength="6" id="edit-user-pin" required class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono tracking-widest" />
+          </div>
+          <div>
+            <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Password</label>
+            <input type="text" id="edit-user-password" required class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500" />
+          </div>
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Job Title</label>
+          <input type="text" id="edit-user-title" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-orange-500" />
+        </div>
+        <button type="submit" class="w-full mt-2 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-md">
+          Save Changes
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= CHECKOUT & MONEY COLLECTION MODAL ================= -->
+  <div id="checkout-modal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-extrabold text-base text-white flex items-center gap-2">
+          <i class="fa-solid fa-cash-register text-blue-400"></i> Payment Collection &amp; Checkout
+        </h3>
+        <button onclick="document.getElementById('checkout-modal').classList.add('hidden')" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Items Mini Summary -->
+      <div class="mt-4 bg-slate-950 p-3 rounded-xl border border-slate-800 max-h-32 overflow-y-auto" id="checkout-items-summary"></div>
+
+      <!-- Prominent Amount Due Banner -->
+      <div class="mt-4 bg-gradient-to-r from-blue-600/15 to-indigo-600/15 border border-blue-500/40 p-3.5 rounded-2xl flex items-center justify-between">
+        <div>
+          <span class="text-[10px] font-extrabold text-blue-400 uppercase tracking-wider">Total Amount Due</span>
+          <p class="text-xs text-slate-400">Collect from customer</p>
+        </div>
+        <span id="checkout-modal-total" class="text-2xl font-black text-amber-400 font-mono">$0.00</span>
+      </div>
+
+      <!-- Payment Method Selection Cards -->
+      <div class="mt-4">
+        <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Select Payment Method</label>
+        <div class="grid grid-cols-3 gap-2 mt-2">
+          <button class="payment-method-btn p-3 rounded-xl border border-slate-700 bg-slate-800 text-xs font-bold text-white flex flex-col items-center gap-1.5 transition-all" data-method="cash">
+            <i class="fa-solid fa-money-bill-wave text-emerald-400 text-base"></i>
+            <span>Cash</span>
+          </button>
+          <button class="payment-method-btn p-3 rounded-xl border border-slate-700 bg-slate-800 text-xs font-bold text-white flex flex-col items-center gap-1.5 transition-all" data-method="mobile">
+            <i class="fa-solid fa-mobile-screen-button text-blue-400 text-base"></i>
+            <span>Mobile Money</span>
+          </button>
+          <button class="payment-method-btn p-3 rounded-xl border border-slate-700 bg-slate-800 text-xs font-bold text-white flex flex-col items-center gap-1.5 transition-all" data-method="card">
+            <i class="fa-solid fa-credit-card text-amber-400 text-base"></i>
+            <span>Card</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- CASH PAYMENT COLLECTION SECTION -->
+      <div id="checkout-cash-section" class="mt-4 space-y-2 bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
+        <div class="flex justify-between items-center">
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Cash Received / Tendered</label>
+          <span id="cash-balance-status" class="text-xs font-bold text-emerald-400 font-mono">✓ Amount Satisfied</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xl font-bold text-slate-400 font-mono">$</span>
+          <input type="number" step="0.01" id="checkout-cash-amount" class="flex-1 bg-slate-900 border border-slate-700 text-white font-mono text-lg font-bold rounded-xl px-3 py-2 outline-none focus:border-blue-500" />
+        </div>
+
+        <div class="flex items-center gap-1.5 pt-1">
+          <button class="quick-cash-btn flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-200 rounded-lg border border-slate-700" data-amount="exact">Exact</button>
+          <button class="quick-cash-btn flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-200 rounded-lg border border-slate-700" data-amount="10">$10</button>
+          <button class="quick-cash-btn flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-200 rounded-lg border border-slate-700" data-amount="20">$20</button>
+          <button class="quick-cash-btn flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-200 rounded-lg border border-slate-700" data-amount="50">$50</button>
+          <button class="quick-cash-btn flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-200 rounded-lg border border-slate-700" data-amount="100">$100</button>
+          <button class="quick-cash-btn flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-200 rounded-lg border border-slate-700" data-amount="200">$200</button>
+        </div>
+
+        <!-- Prominent Change Return Display -->
+        <div class="flex justify-between items-center p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 mt-2">
+          <div class="flex items-center gap-2 text-emerald-400">
+            <i class="fa-solid fa-hand-holding-dollar text-base"></i>
+            <span class="text-xs font-bold">Change to Return:</span>
+          </div>
+          <span id="checkout-change-due" class="text-xl font-black font-mono text-emerald-400">$0.00</span>
+        </div>
+      </div>
+
+      <!-- MOBILE MONEY (EVC PLUS / ZAAD / SAHAL) SECTION -->
+      <div id="checkout-mobile-section" class="mt-4 space-y-2.5 bg-slate-950 p-3.5 rounded-2xl border border-slate-800 hidden">
+        <div class="flex items-center justify-between text-xs text-blue-400 font-semibold border-b border-slate-800 pb-1.5">
+          <span><i class="fa-solid fa-mobile-screen"></i> EVC Plus / Zaad / Sahal</span>
+          <span class="font-mono bg-blue-500/20 px-2 py-0.5 rounded text-[10px]">Merchant Till: 709275</span>
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Customer Phone Number</label>
+          <input type="text" id="mobile-customer-phone" placeholder="e.g. 061 500 1234" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-blue-500 font-mono" />
+        </div>
+        <div class="p-2 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+          <span>Customer dials: <strong class="text-amber-400 font-mono">*789*709275*AMOUNT#</strong></span>
+          <span class="text-emerald-400 font-bold"><i class="fa-solid fa-circle-check"></i> Ready</span>
+        </div>
+      </div>
+
+      <!-- CARD PAYMENT SECTION -->
+      <div id="checkout-card-section" class="mt-4 space-y-2 bg-slate-950 p-3.5 rounded-2xl border border-slate-800 hidden text-center">
+        <i class="fa-solid fa-credit-card text-3xl text-blue-400 mb-1"></i>
+        <h4 class="text-xs font-bold text-white">Merchant Card Terminal</h4>
+        <p class="text-[11px] text-slate-400">Tap / Insert card into terminal to charge exact amount</p>
+        <span class="inline-block px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-[10px] font-mono font-bold border border-blue-500/30">
+          Terminal Status: Ready for Tap / PIN
+        </span>
+      </div>
+
+      <!-- Action Button -->
+      <button id="btn-confirm-payment" class="w-full mt-5 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 active:scale-98 text-white font-extrabold py-3.5 px-4 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition-all">
+        <i class="fa-solid fa-circle-check"></i> Money Received &amp; Send to 80mm Printers
+      </button>
+
+      <!-- Deferred Payment: Send to Open Bill for Cashier to collect later -->
+      <button id="btn-send-to-open-bill" class="w-full mt-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-bold py-2.5 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 transition-all">
+        <i class="fa-solid fa-file-invoice-dollar"></i> Send to Open Bill / Furan (Pay Later)
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= PAYMENT PROCESSING MODAL ================= -->
+  <div id="payment-processing-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-sm w-full p-7 text-center shadow-2xl relative">
+      <div class="w-20 h-20 mx-auto rounded-full bg-blue-500/10 border-2 border-blue-500/30 flex items-center justify-center mb-5 relative">
+        <div id="processing-spinner-icon">
+          <i class="fa-solid fa-circle-notch fa-spin text-3xl text-blue-500"></i>
+        </div>
+        <div id="processing-check-icon" class="hidden">
+          <i class="fa-solid fa-circle-check text-4xl text-emerald-400 animate-bounce"></i>
+        </div>
+      </div>
+
+      <h3 id="processing-step-text" class="text-base font-extrabold text-white mb-1">Collecting Payment...</h3>
+      <p id="processing-subtext" class="text-xs text-slate-400 mb-5 font-mono">Routing print jobs to Kitchen &amp; Cashier 80mm printers...</p>
+
+      <div class="w-full bg-slate-950 rounded-full h-2.5 overflow-hidden border border-slate-800 p-0.5 mb-3">
+        <div id="processing-progress-bar" class="bg-gradient-to-r from-blue-600 to-amber-400 h-1.5 rounded-full transition-all duration-300 w-1/4"></div>
+      </div>
+
+      <div class="flex items-center justify-center gap-1.5 text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+        <i class="fa-solid fa-print text-blue-400"></i>
+        <span>Printer 1 (Kitchen Chit) &amp; Printer 2 (Cashier 80mm Bill)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= DUAL PRINTER RECEIPT MODAL ================= -->
+  <div id="receipt-modal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-5 shadow-2xl relative flex flex-col max-h-[92vh]">
+      
+      <!-- Top Modal Header & Tab Switcher -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 flex-shrink-0">
+        <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+          <button id="btn-tab-receipt-customer" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-blue-600 text-white flex items-center gap-1.5">
+            <i class="fa-solid fa-receipt"></i> Customer Bill (80mm)
+          </button>
+          <button id="btn-tab-receipt-kitchen" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white flex items-center gap-1.5">
+            <i class="fa-solid fa-utensils text-blue-400"></i> Kitchen Chit
+          </button>
+        </div>
+        <button id="btn-close-receipt" class="text-slate-400 hover:text-white p-1 ml-2">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <!-- Preview Areas -->
+      <div class="flex-1 overflow-y-auto py-4">
+        <!-- Customer Bill Preview Container -->
+        <div id="preview-customer-container">
+          <div id="printable-customer-receipt"></div>
+        </div>
+
+        <!-- Kitchen Chit Preview Container (Only Order Name & Qty) -->
+        <div id="preview-kitchen-container" class="hidden">
+          <div id="printable-kitchen-receipt"></div>
+        </div>
+      </div>
+
+      <!-- 3 Direct Printing Buttons -->
+      <div class="pt-3 border-t border-slate-800 space-y-2 flex-shrink-0">
+        <div class="grid grid-cols-2 gap-2">
+          <button id="btn-print-customer-only" class="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition-all">
+            <i class="fa-solid fa-print text-emerald-400"></i> Print Customer Bill
+          </button>
+          <button id="btn-print-kitchen-only" class="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition-all">
+            <i class="fa-solid fa-utensils text-blue-400"></i> Print Kitchen Chit
+          </button>
+        </div>
+
+        <button id="btn-print-both-printers" class="w-full bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-extrabold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition-all">
+          <i class="fa-solid fa-bolt"></i> Print Both Printers (Kitchen Chit + Customer Bill)
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= TOAST NOTIFICATION CONTAINER ================= -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-xs pointer-events-none"></div>
+
+  <!-- Scripts in dependency order -->
+  <script src="js/data.js"></script>
+  <script src="js/db.js?v=20261001-invoice-delete"></script>
+  <script src="js/pos.js?v=20261002-order-history"></script>
+  <script src="js/reports.js"></script>
+  <script src="js/inventory.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/unpaid.js"></script>
+  <script src="js/halls.js"></script>
+  <script src="js/crm.js?v=20261001-customer-delete"></script>
+  <script src="js/hr.js"></script>
+  <script src="js/purchase.js?v=20261001-invoice-delete"></script>
+  <script src="js/sidebar-filters.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
